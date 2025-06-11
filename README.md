@@ -1,6 +1,6 @@
 # SCP Facility Control Panel
 
-A professional Garry's Mod addon for SCP facility management and emergency response system.
+A simple addon for SCPRP changing codes
 
 ## Features
 
@@ -50,3 +50,6 @@ All configuration is in `lua/autorun/sh_scp_panel.lua`:
 - UI customization
 - Emergency response jobs
 
+
+## PREVIEW
+https://medal.tv/games/garrys-mod/clips/ktn9eiGNqkv3eg4BZ?invite=cr-MSxpOUwsMjA1MzAyMTM4
