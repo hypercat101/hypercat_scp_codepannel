@@ -207,4 +207,92 @@ end)
 
 hook.Add("ShutDown", "scp_cleanup", function()
     activeAlert = 0
+end)
+
+
+local function InitDatabase()
+    if not sql.TableExists("scp_alerts") then
+        sql.Query([[
+            CREATE TABLE IF NOT EXISTS scp_alerts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                code INTEGER,
+                issuer VARCHAR(32),
+                steam_id VARCHAR(32),
+                timestamp INTEGER
+            )
+        ]])
+    end
+end
+
+util.AddNetworkString("SCP_SetAlert")
+util.AddNetworkString("SCP_SyncData")
+
+local cooldowns = {}
+
+local function LogActivity(ply, actionType, details)
+    sql.Query(string.format([[
+        INSERT INTO scp_activity (action_type, performer, steam_id, details, timestamp)
+        VALUES (%s, %s, %s, %s, %d)
+    ]], 
+    sql.SQLStr(actionType),
+    sql.SQLStr(ply:Nick()),
+    sql.SQLStr(ply:SteamID()),
+    sql.SQLStr(details),
+    os.time()))
+end
+
+local function SetAlert(ply, code)
+    if cooldowns[ply:SteamID()] and os.time() - cooldowns[ply:SteamID()] < HYPERCAT.Config.Alerts.Cooldown then
+        ply:ChatPrint(HYPERCAT.Config.Messages.Cooldown)
+        return
+    end
+
+    if not HYPERCAT.Config.Alerts.Codes[code] then return end
+    
+    sql.Query(string.format(
+        "INSERT INTO scp_alerts (code, issuer, steam_id, timestamp) VALUES (%d, %s, %s, %d)",
+        code,
+        sql.SQLStr(ply:Nick()),
+        sql.SQLStr(ply:SteamID()),
+        os.time()
+    ))
+
+    cooldowns[ply:SteamID()] = os.time()
+    
+    net.Start("SCP_SetAlert")
+        net.WriteInt(code, 8)
+        net.WriteString(ply:Nick())
+    net.Broadcast()
+    
+    hook.Run(HYPERCAT.HOOKS.ALERT, ply, code)
+end
+
+net.Receive("SCP_SetAlert", function(len, ply)
+    if not HYPERCAT.Config.Access.Groups[ply:GetUserGroup()] and 
+       not HYPERCAT.Config.Access.Jobs[team.GetName(ply:Team())] then
+        ply:ChatPrint(HYPERCAT.Config.Messages.NoAccess)
+        return
+    end
+    
+    SetAlert(ply, net.ReadInt(8))
+end)
+
+net.Receive("SCP_RequestData", function(len, ply)
+    if not IsValid(ply) then return end
+    
+    net.Start("SCP_SyncData")
+        net.WriteTable(sql.Query("SELECT * FROM scp_alerts ORDER BY timestamp DESC LIMIT 5") or {})
+    net.Send(ply)
+end)
+
+hook.Add("Initialize", "SCP_Init", InitDatabase)
+
+hook.Add("PlayerInitialSpawn", "SCP_PlayerInit", function(ply)
+    timer.Simple(1, function()
+        if IsValid(ply) then
+            net.Start("SCP_SyncData")
+                net.WriteTable(sql.Query("SELECT * FROM scp_alerts ORDER BY timestamp DESC LIMIT 5") or {})
+            net.Send(ply)
+        end
+    end)
 end) 

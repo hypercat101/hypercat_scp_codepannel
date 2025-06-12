@@ -2,6 +2,8 @@ local cfg = HYPERCAT.Config
 local frame
 local alert
 local active = 0
+local activeAlert = 0
+local alertHistory = {}
 
 local PANEL = {}
 
@@ -232,4 +234,100 @@ end)
 hook.Add("ShutDown", "scp_cleanup", function()
     if IsValid(alert) then alert:Remove() end
     if IsValid(frame) then frame:Remove() end
+end)
+
+surface.CreateFont("SCPTitle", {
+    font = "Roboto",
+    size = 24,
+    weight = 600
+})
+
+surface.CreateFont("SCPText", {
+    font = "Roboto",
+    size = 18,
+    weight = 500
+})
+
+local function OpenPanel()
+    if IsValid(SCPPanel) then SCPPanel:Remove() end
+    
+    local frame = vgui.Create("DFrame")
+    frame.Paint = function(self, w, h)
+        draw.RoundedBox(4, 0, 0, w, h, HYPERCAT.Config.UI.Background)
+    end
+    
+    frame:SetTitle(HYPERCAT.Config.Panel.Title)
+    frame:SetSize(400, 500)
+    frame:Center()
+    frame:MakePopup()
+    SCPPanel = frame
+    
+    local scroll = vgui.Create("DScrollPanel", frame)
+    scroll:Dock(FILL)
+    scroll:DockMargin(5, 5, 5, 5)
+    
+    for code, data in pairs(HYPERCAT.Config.Alerts.Codes) do
+        local btn = scroll:Add("DButton")
+        btn:Dock(TOP)
+        btn:DockMargin(0, 0, 0, 5)
+        btn:SetTall(40)
+        btn:SetText(data.name)
+        btn:SetTextColor(HYPERCAT.Config.UI.Text)
+        
+        btn.Paint = function(self, w, h)
+            local bgColor = self:IsHovered() and HYPERCAT.Config.UI.ButtonHover or HYPERCAT.Config.UI.ButtonNormal
+            draw.RoundedBox(4, 0, 0, w, h, bgColor)
+        end
+        
+        btn.DoClick = function()
+            net.Start("SCP_SetAlert")
+                net.WriteInt(code, 8)
+            net.SendToServer()
+        end
+    end
+end
+
+net.Receive("SCP_SetAlert", function()
+    local code = net.ReadInt(8)
+    local issuer = net.ReadString()
+    
+    activeAlert = code
+    
+    if code > 0 then
+        surface.PlaySound(HYPERCAT.Config.Alerts.Sound)
+        chat.AddText(Color(255, 100, 100), HYPERCAT.Config.Messages.Prefix, 
+                    HYPERCAT.Config.UI.Text, string.format(HYPERCAT.Config.Messages.AlertSet, 
+                    HYPERCAT.Config.Alerts.Codes[code].name))
+    else
+        chat.AddText(Color(100, 255, 100), HYPERCAT.Config.Messages.Prefix, 
+                    HYPERCAT.Config.UI.Text, HYPERCAT.Config.Messages.AlertClear)
+    end
+end)
+
+net.Receive("SCP_SyncData", function()
+    alertHistory = net.ReadTable()
+end)
+
+hook.Add("HUDPaint", "SCP_AlertDisplay", function()
+    if activeAlert > 0 then
+        local data = HYPERCAT.Config.Alerts.Codes[activeAlert]
+        if not data then return end
+        
+        local text = data.name
+        surface.SetFont("SCPTitle")
+        local tw, th = surface.GetTextSize(text)
+        
+        local y = ScrH() - 100
+        draw.SimpleText(text, "SCPTitle", ScrW() / 2, y, data.color, TEXT_ALIGN_CENTER)
+    end
+end)
+
+concommand.Add(string.sub(HYPERCAT.Config.Panel.Command, 2), OpenPanel)
+
+hook.Add("PlayerButtonDown", "SCP_KeybindCheck", function(ply, key)
+    if key == HYPERCAT.Config.Panel.Keybind and 
+       (HYPERCAT.Config.Access.Groups[LocalPlayer():GetUserGroup()] or 
+        HYPERCAT.Config.Access.Jobs[team.GetName(LocalPlayer():Team())]) then
+        OpenPanel()
+    end
 end) 

@@ -25,7 +25,7 @@ HYPERCAT.Config = {
         Keybind = KEY_F6,
         Title = "SCP Facility Control Panel"
     },
-
+-- ALERTS FULLY CHANGBLE AND EDITABLE dm hypercat on discord if your having any issues
     Alerts = {
         Cooldown = 3,
         Volume = 0.8,
