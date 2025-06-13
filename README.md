@@ -52,4 +52,4 @@ All configuration is in `lua/autorun/sh_scp_panel.lua`:
 
 
 ## PREVIEW
-https://medal.tv/games/garrys-mod/clips/ktn9eiGNqkv3eg4BZ?invite=cr-MSxpOUwsMjA1MzAyMTM4
+[https://medal.tv/games/garrys-mod/clips/ktn9eiGNqkv3eg4BZ?invite=cr-MSxpOUwsMjA1MzAyMTM4](https://medal.tv/games/garrys-mod/clips/ktXRVKe1p2Waa4l6f?invite=cr-MSx2ak4sMjA1MzAyMTM4)
